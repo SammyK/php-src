@@ -447,7 +447,7 @@ statement:
 	|	';'	/* empty statement */ { $$ = NULL; }
 	|	T_TRY '{' inner_statement_list '}' catch_list finally_statement
 			{ $$ = zend_ast_create(ZEND_AST_TRY, $3, $5, $6); }
-	|	T_RETRY ';' { $$ = zend_ast_create(ZEND_RETRY); }
+	|	T_RETRY ';' { $$ = zend_ast_create(ZEND_AST_RETRY); }
 	|	T_THROW expr ';' { $$ = zend_ast_create(ZEND_AST_THROW, $2); }
 	|	T_GOTO T_STRING ';' { $$ = zend_ast_create(ZEND_AST_GOTO, $2); }
 	|	T_STRING ':' { $$ = zend_ast_create(ZEND_AST_LABEL, $1); }
