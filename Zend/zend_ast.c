@@ -1149,6 +1149,9 @@ simple_list:
 				EMPTY_SWITCH_DEFAULT_CASE();
 			}
 			break;
+		case ZEND_AST_RETRY:
+			APPEND_NODE_1("retry");
+			break;
 
 		/* 1 child node */
 		case ZEND_AST_VAR:

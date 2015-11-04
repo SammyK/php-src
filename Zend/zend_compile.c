@@ -4250,6 +4250,13 @@ void zend_compile_try(zend_ast *ast) /* {{{ */
 }
 /* }}} */
 
+void zend_compile_retry(zend_ast *ast) /* {{{ */
+{
+	/* TODO */
+	zend_emit_op(NULL, ZEND_RETRY, NULL, NULL);
+}
+/* }}} */
+
 /* Encoding declarations must already be handled during parsing */
 void zend_handle_encoding_declaration(zend_ast *ast) /* {{{ */
 {
@@ -7069,6 +7076,9 @@ void zend_compile_stmt(zend_ast *ast) /* {{{ */
 			break;
 		case ZEND_AST_TRY:
 			zend_compile_try(ast);
+			break;
+		case ZEND_AST_RETRY:
+			zend_compile_retry(ast);
 			break;
 		case ZEND_AST_DECLARE:
 			zend_compile_declare(ast);

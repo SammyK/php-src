@@ -170,6 +170,7 @@ static YYSIZE_T zend_yytnamerr(char*, const char*);
 %token T_RETURN     "return (T_RETURN)"
 %token T_TRY        "try (T_TRY)"
 %token T_CATCH      "catch (T_CATCH)"
+%token T_RETRY      "retry (T_RETRY)"
 %token T_FINALLY    "finally (T_FINALLY)"
 %token T_THROW      "throw (T_THROW)"
 %token T_USE        "use (T_USE)"
@@ -268,7 +269,7 @@ start:
 reserved_non_modifiers:
 	  T_INCLUDE | T_INCLUDE_ONCE | T_EVAL | T_REQUIRE | T_REQUIRE_ONCE | T_LOGICAL_OR | T_LOGICAL_XOR | T_LOGICAL_AND
 	| T_INSTANCEOF | T_NEW | T_CLONE | T_EXIT | T_IF | T_ELSEIF | T_ELSE | T_ENDIF | T_ECHO | T_DO | T_WHILE | T_ENDWHILE
-	| T_FOR | T_ENDFOR | T_FOREACH | T_ENDFOREACH | T_DECLARE | T_ENDDECLARE | T_AS | T_TRY | T_CATCH | T_FINALLY
+	| T_FOR | T_ENDFOR | T_FOREACH | T_ENDFOREACH | T_DECLARE | T_ENDDECLARE | T_AS | T_TRY | T_CATCH | T_RETRY | T_FINALLY
 	| T_THROW | T_USE | T_INSTEADOF | T_GLOBAL | T_VAR | T_UNSET | T_ISSET | T_EMPTY | T_CONTINUE | T_GOTO
 	| T_FUNCTION | T_CONST | T_RETURN | T_PRINT | T_YIELD | T_LIST | T_SWITCH | T_ENDSWITCH | T_CASE | T_DEFAULT | T_BREAK
 	| T_ARRAY | T_CALLABLE | T_EXTENDS | T_IMPLEMENTS | T_NAMESPACE | T_TRAIT | T_INTERFACE | T_CLASS
@@ -446,6 +447,7 @@ statement:
 	|	';'	/* empty statement */ { $$ = NULL; }
 	|	T_TRY '{' inner_statement_list '}' catch_list finally_statement
 			{ $$ = zend_ast_create(ZEND_AST_TRY, $3, $5, $6); }
+	|	T_RETRY ';' { $$ = zend_ast_create(ZEND_RETRY); }
 	|	T_THROW expr ';' { $$ = zend_ast_create(ZEND_AST_THROW, $2); }
 	|	T_GOTO T_STRING ';' { $$ = zend_ast_create(ZEND_AST_GOTO, $2); }
 	|	T_STRING ':' { $$ = zend_ast_create(ZEND_AST_LABEL, $1); }
