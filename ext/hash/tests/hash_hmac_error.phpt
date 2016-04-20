@@ -1,5 +1,5 @@
 --TEST--
-Test hash_hmac() function : basic functionality 
+Test hash_hmac() function : error conditions
 --SKIPIF--
 <?php extension_loaded('hash') or die('skip: hash extension not loaded.'); ?>
 --FILE--
@@ -26,6 +26,10 @@ var_dump(hash_hmac('crc32', $data, $key, TRUE, $extra_arg));
 echo "\n-- Testing hash_hmac() function with invalid hash algorithm --\n";
 var_dump(hash_hmac('foo', $data, $key));
 
+echo "\n-- Testing hash_hmac() function with empty key --\n";
+var_dump(hash_hmac('sha256', $data, ''));
+var_dump(hash_hmac('sha256', $data, null));
+
 ?>
 ===Done===
 --EXPECTF--
@@ -50,5 +54,13 @@ NULL
 -- Testing hash_hmac() function with invalid hash algorithm --
 
 Warning: hash_hmac(): Unknown hashing algorithm: foo in %s on line %d
+bool(false)
+
+-- Testing hash_hmac() function with empty key --
+
+Warning: hash_hmac(): HMAC requested without a key in %s on line %d
+bool(false)
+
+Warning: hash_hmac(): HMAC requested without a key in %s on line %d
 bool(false)
 ===Done===

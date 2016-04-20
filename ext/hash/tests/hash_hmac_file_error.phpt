@@ -1,5 +1,5 @@
 --TEST--
-Test hash_hmac_file() function : basic functionality 
+Test hash_hmac_file() function : error conditions
 --SKIPIF--
 <?php extension_loaded('hash') or die('skip: hash extension not loaded.'); ?>
 --FILE--
@@ -31,6 +31,10 @@ hash_hmac_file('foo', $file, $key, TRUE);
 echo "\n-- Testing hash_hmac_file() function with bad path --\n";
 hash_hmac_file('crc32', $file.chr(0).$file, $key, TRUE);
 
+echo "\n-- Testing hash_hmac_file() function with empty key --\n";
+var_dump(hash_hmac_file('sha256', $file, ''));
+var_dump(hash_hmac_file('sha256', $file, null));
+
 ?>
 ===Done===
 --EXPECTF--
@@ -58,4 +62,12 @@ Warning: hash_hmac_file(): Unknown hashing algorithm: foo in %s on line %d
 -- Testing hash_hmac_file() function with bad path --
 
 Warning: hash_hmac_file(): Invalid path in %s on line %d
+
+-- Testing hash_hmac_file() function with empty key --
+
+Warning: hash_hmac_file(): HMAC requested without a key in %s on line %d
+bool(false)
+
+Warning: hash_hmac_file(): HMAC requested without a key in %s on line %d
+bool(false)
 ===Done===

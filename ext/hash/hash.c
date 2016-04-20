@@ -248,6 +248,10 @@ static void php_hash_do_hash_hmac(INTERNAL_FUNCTION_PARAMETERS, int isfilename, 
 		php_error_docref(NULL, E_WARNING, "Unknown hashing algorithm: %s", algo);
 		RETURN_FALSE;
 	}
+	if (key_len == 0) {
+		php_error_docref(NULL, E_WARNING, "HMAC requested without a key");
+		RETURN_FALSE;
+	}
 	if (isfilename) {
 		if (CHECK_NULL_PATH(data, data_len)) {
 			php_error_docref(NULL, E_WARNING, "Invalid path");
