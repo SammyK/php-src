@@ -974,7 +974,7 @@ ZEND_VM_INLINE_HELPER(zend_binary_assign_op_helper, VAR|UNUSED|THIS|CV, CONST|TM
 		ZEND_VM_DISPATCH_TO_HELPER(zend_binary_assign_op_dim_helper, binary_op, binary_op);
 	}
 # endif
-	
+
 	ZEND_VM_DISPATCH_TO_HELPER(zend_binary_assign_op_obj_helper, binary_op, binary_op);
 #endif
 }
@@ -2489,7 +2489,7 @@ ZEND_VM_HANDLER(43, ZEND_JMPZ, CONST|TMPVAR|CV, JMP_ADDR)
 	zval *val;
 
 	val = GET_OP1_ZVAL_PTR_UNDEF(BP_VAR_R);
-	
+
 	if (Z_TYPE_INFO_P(val) == IS_TRUE) {
 		ZEND_VM_SET_NEXT_OPCODE(opline + 1);
 		ZEND_VM_CONTINUE();
@@ -3169,7 +3169,7 @@ ZEND_VM_HANDLER(113, ZEND_INIT_STATIC_METHOD_CALL, UNUSED|CLASS_FETCH|CONST|VAR,
 
 	if (OP1_TYPE == IS_UNUSED) {
 		/* previous opcode is ZEND_FETCH_CLASS */
-		if ((opline->op1.num & ZEND_FETCH_CLASS_MASK) == ZEND_FETCH_CLASS_PARENT || 
+		if ((opline->op1.num & ZEND_FETCH_CLASS_MASK) == ZEND_FETCH_CLASS_PARENT ||
 		    (opline->op1.num & ZEND_FETCH_CLASS_MASK) == ZEND_FETCH_CLASS_SELF) {
 			if (Z_TYPE(EX(This)) == IS_OBJECT) {
 				ce = Z_OBJCE(EX(This));
@@ -3631,7 +3631,7 @@ ZEND_VM_HANDLER(60, ZEND_DO_FCALL, ANY, ANY, SPEC(RETVAL))
 		} else {
 			zend_execute_internal(call, ret);
 		}
-		
+
 #if ZEND_DEBUG
 		if (!EG(exception) && call->func) {
 			ZEND_ASSERT(!(call->func->common.fn_flags & ZEND_ACC_HAS_RETURN_TYPE) ||
@@ -4074,6 +4074,45 @@ ZEND_VM_HANDLER(107, ZEND_CATCH, CONST, CV, JMP_ADDR)
 		HANDLE_EXCEPTION();
 	} else {
 		EG(exception) = NULL;
+		ZEND_VM_NEXT_OPCODE();
+	}
+}
+
+ZEND_VM_HANDLER(187, ZEND_RETRY, ANY, ANY)
+{
+	USE_OPLINE
+	/* @TODO Figure all this out */
+	uint32_t try_catch_offset = opline->extended_value;
+	zend_try_catch_element *try_catch =
+		&EX(func)->op_array.try_catch_array[try_catch_offset];
+	static uint32_t retry_count = 2;
+
+	// A few trys at tracking the "retries so far" count via temp var
+	// This doesn't work as expected
+	zval *result = EX_VAR(opline->result.var);
+	zend_long result2 = zval_get_long(result);
+
+
+	/*
+
+@TODO - Where to store "remaining retry count"??
+EX(call) - execute_data????
+HashTable????
+
+	*/
+
+
+	php_printf("VM! Offset: %d; Retry: %d; Real Retry Count: %d\n", try_catch_offset, retry_count, result2);
+
+	if (retry_count > 0) {
+		retry_count--;
+
+		ZVAL_LONG(EX_VAR(opline->result.var), retry_count);
+		//SAVE_OPLINE();
+
+		ZEND_VM_SET_OPCODE(&EX(func)->op_array.opcodes[try_catch->try_op]);
+		ZEND_VM_CONTINUE();
+	} else {
 		ZEND_VM_NEXT_OPCODE();
 	}
 }
@@ -6330,7 +6369,7 @@ ZEND_VM_HANDLER(180, ZEND_ISSET_ISEMPTY_STATIC_PROP, CONST|TMPVAR|CV, UNUSED|CLA
 
 	if (OP1_TYPE == IS_CONST && value) {
 		CACHE_POLYMORPHIC_PTR(Z_CACHE_SLOT_P(EX_CONSTANT(opline->op1)), ce, value);
-	}		
+	}
 
 	if (OP1_TYPE != IS_CONST && Z_TYPE(tmp) != IS_UNDEF) {
 		zend_string_release(Z_STR(tmp));

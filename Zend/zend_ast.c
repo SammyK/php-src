@@ -1559,6 +1559,17 @@ simple_list:
 				zend_ast_export_name(str, ast->child[1], 0, indent);
 			}
 			break;
+		case ZEND_AST_RETRY:
+				/*
+				smart_str_appends(str, 'retry ');
+				if (ast->child[0]) {
+					zend_ast_export_ex(str, ast->child[0], 0, indent);
+				}
+				if (ast->child[1]) {
+					zend_ast_export_ex(str, ast->child[1], 0, indent);
+				}
+				*/
+				break;
 
 		/* 3 child nodes */
 		case ZEND_AST_METHOD_CALL:

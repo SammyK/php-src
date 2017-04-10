@@ -112,7 +112,7 @@ ZEND_API void destroy_zend_function(zend_function *function)
 		zend_string_release(function->common.function_name);
 
 		if (function->common.arg_info &&
-		    (function->common.fn_flags & (ZEND_ACC_HAS_RETURN_TYPE|ZEND_ACC_HAS_TYPE_HINTS))) { 
+		    (function->common.fn_flags & (ZEND_ACC_HAS_RETURN_TYPE|ZEND_ACC_HAS_TYPE_HINTS))) {
 			uint32_t i;
 			uint32_t num_args = function->common.num_args + 1;
 			zend_arg_info *arg_info = function->common.arg_info - 1;
@@ -626,6 +626,7 @@ ZEND_API int pass_two(zend_op_array *op_array)
 					zend_check_finally_breakout(op_array, opline - op_array->opcodes, opline->op1.opline_num);
 				}
 				/* break omitted intentionally */
+			case ZEND_RETRY:
 			case ZEND_JMP:
 				ZEND_PASS_TWO_UPDATE_JMP_TARGET(op_array, opline, opline->op1);
 				break;

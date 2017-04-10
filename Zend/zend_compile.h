@@ -169,6 +169,7 @@ typedef struct _zend_label {
 typedef struct _zend_try_catch_element {
 	uint32_t try_op;
 	uint32_t catch_op;  /* ketchup! */
+	uint32_t retry_count;
 	uint32_t finally_op;
 	uint32_t finally_end;
 } zend_try_catch_element;

@@ -1042,6 +1042,7 @@ static uint32_t zend_add_try_element(uint32_t try_op) /* {{{ */
 	elem = &op_array->try_catch_array[try_catch_offset];
 	elem->try_op = try_op;
 	elem->catch_op = 0;
+	elem->retry_count = 0;
 	elem->finally_op = 0;
 	elem->finally_end = 0;
 
@@ -1276,7 +1277,7 @@ static void zend_mark_function_as_generator() /* {{{ */
 
 		if (ZEND_TYPE_CODE(return_info.type) != IS_ITERABLE) {
 			const char *msg = "Generators may only declare a return type of Generator, Iterator, Traversable, or iterable, %s is not permitted";
-			
+
 			if (!ZEND_TYPE_IS_CLASS(return_info.type)) {
 				zend_error_noreturn(E_COMPILE_ERROR, msg, zend_get_type_by_const(ZEND_TYPE_CODE(return_info.type)));
 			}
@@ -1945,7 +1946,7 @@ ZEND_API size_t zend_dirname(char *path, size_t len)
 static void zend_adjust_for_fetch_type(zend_op *opline, uint32_t type) /* {{{ */
 {
 	zend_uchar factor = (opline->opcode == ZEND_FETCH_STATIC_PROP_R) ? 1 : 3;
-	
+
 	if (opline->opcode == ZEND_FETCH_THIS) {
 		return;
 	}
@@ -2181,7 +2182,7 @@ static void zend_emit_tick(void) /* {{{ */
 	if (CG(active_op_array)->last && CG(active_op_array)->opcodes[CG(active_op_array)->last - 1].opcode == ZEND_TICKS) {
 		return;
 	}
-	
+
 	opline = get_next_op(CG(active_op_array));
 
 	opline->opcode = ZEND_TICKS;
@@ -2606,7 +2607,7 @@ static zend_op *zend_compile_simple_var_no_cv(znode *result, zend_ast *ast, uint
 		opline = zend_emit_op(result, ZEND_FETCH_R, &name_node, NULL);
 	}
 
-	if (name_node.op_type == IS_CONST && 
+	if (name_node.op_type == IS_CONST &&
 	    zend_is_auto_global(Z_STR(name_node.u.constant))) {
 
 		opline->extended_value = ZEND_FETCH_GLOBAL;
@@ -4646,7 +4647,7 @@ void zend_compile_switch(zend_ast *ast) /* {{{ */
 		} else if (expr_node.op_type == IS_CONST
 			&& Z_TYPE(expr_node.u.constant) == IS_TRUE) {
 			jmpnz_opnums[i] = zend_emit_cond_jump(ZEND_JMPNZ, &cond_node, 0);
-		} else {		    
+		} else {
 			opline = zend_emit_op(NULL, ZEND_CASE, &expr_node, &cond_node);
 			SET_NODE(opline->result, &case_node);
 			if (opline->op1_type == IS_CONST) {
@@ -4819,7 +4820,7 @@ void zend_compile_try(zend_ast *ast) /* {{{ */
 	if (finally_ast) {
 		zend_loop_var discard_exception;
 		uint32_t opnum_jmp = get_next_op_number(CG(active_op_array)) + 1;
-		
+
 		/* Pop FAST_CALL from unwind stack */
 		zend_stack_del_top(&CG(loop_var_stack));
 
@@ -4862,6 +4863,99 @@ void zend_compile_try(zend_ast *ast) /* {{{ */
 	CG(context).try_catch_offset = orig_try_catch_offset;
 
 	efree(jmp_opnums);
+}
+/* }}} */
+
+int zend_get_retry_count(uint32_t *retry_count, zend_ast *ast) /* {{{ */
+{
+	zval *retry_count_zv = NULL;
+
+	switch (ast->kind) {
+		case ZEND_AST_CLASS_CONST:
+		case ZEND_AST_CONST:
+			php_printf("Const!!\n");
+			// @TODO Why this cause segfaut???
+			zend_const_expr_to_zval(retry_count_zv, ast);
+			break;
+		case ZEND_AST_ZVAL:
+			retry_count_zv = zend_ast_get_zval(ast);
+			break;
+		default:
+			zend_error(E_COMPILE_ERROR, "Retry count must be an integer or a constant");
+			return FAILURE;
+			break;
+	}
+
+	if (Z_TYPE_P(retry_count_zv) == IS_DOUBLE || Z_DVAL_P(retry_count_zv) == ZEND_INFINITY) {
+		php_printf("Infinity!!\n");
+		*retry_count = 0;
+		return SUCCESS;
+	}
+	if (Z_TYPE_P(retry_count_zv) != IS_LONG) {
+		// @TODO Change this to same as above message
+		zend_error(E_COMPILE_ERROR, "Retry count must be an int");
+		return FAILURE;
+	}
+
+	*retry_count = Z_LVAL_P(retry_count_zv);
+	if (*retry_count >= 0) {
+		return SUCCESS;
+	}
+	zend_error(E_COMPILE_ERROR, "Retry count must be greater than or equal to 0");
+	return FAILURE;
+}
+/* }}} */
+
+void zend_compile_retry(zend_ast *ast) /* {{{ */
+{
+	uint32_t try_catch_offset = CG(context).try_catch_offset;
+	zend_ast *retry_count_ast = ast->child[0];
+	zend_ast *stmt_ast = ast->child[1];
+	uint32_t retry_count = 0;
+	zend_op *opline;
+
+	// @TODO Can we combine this if statement?
+	// @TODO Double check this works for finally statement when fixing finally bug
+	// @TODO Make sure we're not within retry context (add a 'in_retry' to try_catch_array?)
+	if (try_catch_offset < 0) {
+		zend_error(E_COMPILE_WARNING, "The retry keyword cannot be used outside of a 'catch' block");
+		return;
+	}
+	// @TODO Does not work for checking finally since finally_op is set _after_ compiling finally_ast
+	if (!(CG(active_op_array)->try_catch_array[try_catch_offset].catch_op > 0
+		&& CG(active_op_array)->try_catch_array[try_catch_offset].finally_op == 0)) {
+		zend_error(E_COMPILE_WARNING, "The retry keyword cannot be used outside of a 'catch' block");
+		return;
+	}
+
+	php_printf("Try Op: %d; Catch Op: %d; Finally Op: %d\n",
+		CG(active_op_array)->try_catch_array[try_catch_offset].try_op,
+		CG(active_op_array)->try_catch_array[try_catch_offset].catch_op,
+		CG(active_op_array)->try_catch_array[try_catch_offset].finally_op);
+
+	if (retry_count_ast) {
+		if (zend_get_retry_count(&retry_count, retry_count_ast) == FAILURE) {
+			return;
+		}
+	}
+
+	if (stmt_ast) {
+		// @TODO Look for break and don't retry if break (go back out to catch)
+		zend_compile_stmt(stmt_ast);
+	}
+
+	CG(active_op_array)->try_catch_array[try_catch_offset].retry_count = retry_count;
+
+	opline = zend_emit_op(NULL, ZEND_RETRY, NULL, NULL); // Send to VM???
+	// Is this OK to put in here?
+	opline->extended_value = try_catch_offset;
+	// Should we do this?
+	SET_UNUSED(opline->op1);
+	SET_UNUSED(opline->op2);
+	opline->result_type = IS_TMP_VAR;
+	opline->result.var = retry_count;
+
+	//php_printf("Retry; Offset: %d Count: %d\n", try_catch_offset, retry_count);
 }
 /* }}} */
 
@@ -5072,7 +5166,7 @@ void zend_compile_params(zend_ast *ast, zend_ast *return_type_ast) /* {{{ */
 	uint32_t i;
 	zend_op_array *op_array = CG(active_op_array);
 	zend_arg_info *arg_infos;
-	
+
 	if (return_type_ast) {
 		zend_bool allow_null = 0;
 
@@ -5215,14 +5309,14 @@ void zend_compile_params(zend_ast *ast, zend_ast *return_type_ast) /* {{{ */
 									"with a float type can only be float, integer, or NULL");
 							}
 							break;
-						
+
 						case IS_ITERABLE:
 							if (Z_TYPE(default_node.u.constant) != IS_ARRAY) {
 								zend_error_noreturn(E_COMPILE_ERROR, "Default value for parameters "
 									"with iterable type can only be an array or NULL");
 							}
 							break;
-							
+
 						default:
 							if (!ZEND_SAME_FAKE_TYPE(ZEND_TYPE_CODE(arg_info->type), Z_TYPE(default_node.u.constant))) {
 								zend_error_noreturn(E_COMPILE_ERROR, "Default value for parameters "
@@ -5255,7 +5349,7 @@ void zend_compile_params(zend_ast *ast, zend_ast *return_type_ast) /* {{{ */
 			} else {
 				opline->op2.num = -1;
 			}
-		}	
+		}
 	}
 
 	/* These are assigned at the end to avoid unitialized memory in case of an error */
@@ -7503,7 +7597,7 @@ static void zend_compile_encaps_list(znode *result, zend_ast *ast) /* {{{ */
 		i = ((j * sizeof(zend_string*)) + (sizeof(zval) - 1)) / sizeof(zval);
 		while (i > 1) {
 			get_temporary_variable(CG(active_op_array));
-			i--;			
+			i--;
 		}
 
 		zend_end_live_range(CG(active_op_array), range, opline - CG(active_op_array)->opcodes,
@@ -7792,6 +7886,9 @@ void zend_compile_stmt(zend_ast *ast) /* {{{ */
 			break;
 		case ZEND_AST_TRY:
 			zend_compile_try(ast);
+			break;
+		case ZEND_AST_RETRY:
+			zend_compile_retry(ast);
 			break;
 		case ZEND_AST_DECLARE:
 			zend_compile_declare(ast);
