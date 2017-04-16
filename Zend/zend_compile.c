@@ -4793,18 +4793,18 @@ void zend_compile_switch(zend_ast *ast) /* {{{ */
 void zend_compile_try(zend_ast *ast) /* {{{ */
 {
 	zend_ast *try_ast = ast->child[0];
-	zend_ast_list *catches = zend_ast_get_list(ast->child[1]);
+	zend_ast_list *retries_catches = zend_ast_get_list(ast->child[1]);
 	zend_ast *finally_ast = ast->child[2];
 
 	uint32_t i, j;
 	zend_op *opline;
 	uint32_t try_catch_offset;
-	uint32_t *jmp_opnums = safe_emalloc(sizeof(uint32_t), catches->children, 0);
+	uint32_t *jmp_opnums = safe_emalloc(sizeof(uint32_t), retries_catches->children, 0);
 	uint32_t orig_fast_call_var = CG(context).fast_call_var;
 	uint32_t orig_try_catch_offset = CG(context).try_catch_offset;
 
-	if (catches->children == 0 && !finally_ast) {
-		zend_error_noreturn(E_COMPILE_ERROR, "Cannot use try without catch or finally");
+	if (retries_catches->children == 0 && !finally_ast) {
+		zend_error_noreturn(E_COMPILE_ERROR, "Cannot use try without retry, catch or finally");
 	}
 
 	/* label: try { } must not be equal to try { label: } */
@@ -4839,22 +4839,41 @@ void zend_compile_try(zend_ast *ast) /* {{{ */
 
 	zend_compile_stmt(try_ast);
 
-	if (catches->children != 0) {
+	if (retries_catches->children != 0) {
 		jmp_opnums[0] = zend_emit_jump(0);
 	}
 
-	for (i = 0; i < catches->children; ++i) {
-		zend_ast *catch_ast = catches->child[i];
-		zend_ast_list *classes = zend_ast_get_list(catch_ast->child[0]);
-		zend_ast *var_ast = catch_ast->child[1];
-		zend_ast *stmt_ast = catch_ast->child[2];
-		zval *var_name = zend_ast_get_zval(var_ast);
-		zend_bool is_last_catch = (i + 1 == catches->children);
+	for (i = 0; i < retries_catches->children; ++i) {
+		zend_ast *retry_catch_ast = retries_catches->child[i];
+		zend_ast_list *classes;
+		zend_ast *var_ast = retry_catch_ast->child[1];
+		zend_ast *stmt_ast = retry_catch_ast->child[2];
+		zval *var_name;
+		// @TODO Do we need to change this?
+		zend_bool is_last_catch = (i + 1 == retries_catches->children);
 
+		if (retry_catch_ast->child[0]) {
+			classes = zend_ast_get_list(retry_catch_ast->child[0]);
+		}
+		if (var_ast) {
+			var_name = zend_ast_get_zval(var_ast);
+		}
+
+		if (retry_catch_ast->kind == ZEND_AST_RETRY) {
+			php_printf("==Retry! (%d)==\n", retry_catch_ast->lineno);
+			opline = get_next_op(CG(active_op_array));
+			opline->opcode = ZEND_RETRY;
+			opline->op1_type = IS_TMP_VAR;
+			//opline->op1.num = $x
+			return;
+		} else if (retry_catch_ast->kind == ZEND_AST_CATCH) {
+			php_printf("==Catch (%d)==\n", retry_catch_ast->lineno);
+		}
+		
 		uint32_t *jmp_multicatch = safe_emalloc(sizeof(uint32_t), classes->children - 1, 0);
 		uint32_t opnum_catch;
 
-		CG(zend_lineno) = catch_ast->lineno;
+		CG(zend_lineno) = retry_catch_ast->lineno;
 
 		for (j = 0; j < classes->children; j++) {
 
@@ -4909,7 +4928,7 @@ void zend_compile_try(zend_ast *ast) /* {{{ */
 		}
 	}
 
-	for (i = 0; i < catches->children; ++i) {
+	for (i = 0; i < retries_catches->children; ++i) {
 		zend_update_jump_target_to_next(jmp_opnums[i]);
 	}
 

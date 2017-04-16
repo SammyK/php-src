@@ -1156,6 +1156,10 @@ NEWLINE ("\r"|"\n"|"\r\n")
 	RETURN_TOKEN(T_TRY);
 }
 
+<ST_IN_SCRIPTING>"retry" {
+	RETURN_TOKEN(T_RETRY);
+}
+
 <ST_IN_SCRIPTING>"catch" {
 	RETURN_TOKEN(T_CATCH);
 }

@@ -169,6 +169,7 @@ static YYSIZE_T zend_yytnamerr(char*, const char*);
 %token T_CONST      "const (T_CONST)"
 %token T_RETURN     "return (T_RETURN)"
 %token T_TRY        "try (T_TRY)"
+%token T_RETRY      "retry (T_RETRY)"
 %token T_CATCH      "catch (T_CATCH)"
 %token T_FINALLY    "finally (T_FINALLY)"
 %token T_THROW      "throw (T_THROW)"
@@ -244,7 +245,7 @@ static YYSIZE_T zend_yytnamerr(char*, const char*);
 %type <ast> encaps_var encaps_var_offset isset_variables
 %type <ast> top_statement_list use_declarations const_list inner_statement_list if_stmt
 %type <ast> alt_if_stmt for_exprs switch_case_list global_var_list static_var_list
-%type <ast> echo_expr_list unset_variables catch_name_list catch_list parameter_list class_statement_list
+%type <ast> echo_expr_list unset_variables catch_name_list parameter_list class_statement_list
 %type <ast> implements_list case_list if_stmt_without_else
 %type <ast> non_empty_parameter_list argument_list non_empty_argument_list property_list
 %type <ast> class_const_list class_const_decl name_list trait_adaptations method_body non_empty_for_exprs
@@ -252,7 +253,7 @@ static YYSIZE_T zend_yytnamerr(char*, const char*);
 %type <ast> lexical_var_list encaps_list
 %type <ast> array_pair non_empty_array_pair_list array_pair_list possible_array_pair
 %type <ast> isset_variable type return_type type_expr
-%type <ast> identifier
+%type <ast> identifier retry_catch_list optional_retry_count retry_count
 
 %type <num> returns_ref function is_reference is_variadic variable_modifiers
 %type <num> method_modifiers non_empty_member_modifiers member_modifier
@@ -269,7 +270,7 @@ start:
 reserved_non_modifiers:
 	  T_INCLUDE | T_INCLUDE_ONCE | T_EVAL | T_REQUIRE | T_REQUIRE_ONCE | T_LOGICAL_OR | T_LOGICAL_XOR | T_LOGICAL_AND
 	| T_INSTANCEOF | T_NEW | T_CLONE | T_EXIT | T_IF | T_ELSEIF | T_ELSE | T_ENDIF | T_ECHO | T_DO | T_WHILE | T_ENDWHILE
-	| T_FOR | T_ENDFOR | T_FOREACH | T_ENDFOREACH | T_DECLARE | T_ENDDECLARE | T_AS | T_TRY | T_CATCH | T_FINALLY
+	| T_FOR | T_ENDFOR | T_FOREACH | T_ENDFOREACH | T_DECLARE | T_ENDDECLARE | T_AS | T_TRY | T_RETRY | T_CATCH | T_FINALLY
 	| T_THROW | T_USE | T_INSTEADOF | T_GLOBAL | T_VAR | T_UNSET | T_ISSET | T_EMPTY | T_CONTINUE | T_GOTO
 	| T_FUNCTION | T_CONST | T_RETURN | T_PRINT | T_YIELD | T_LIST | T_SWITCH | T_ENDSWITCH | T_CASE | T_DEFAULT | T_BREAK
 	| T_ARRAY | T_CALLABLE | T_EXTENDS | T_IMPLEMENTS | T_NAMESPACE | T_TRAIT | T_INTERFACE | T_CLASS
@@ -445,18 +446,32 @@ statement:
 		declare_statement
 			{ $$ = zend_ast_create(ZEND_AST_DECLARE, $3, $6); }
 	|	';'	/* empty statement */ { $$ = NULL; }
-	|	T_TRY '{' inner_statement_list '}' catch_list finally_statement
+	|	T_TRY '{' inner_statement_list '}' retry_catch_list finally_statement
 			{ $$ = zend_ast_create(ZEND_AST_TRY, $3, $5, $6); }
 	|	T_THROW expr ';' { $$ = zend_ast_create(ZEND_AST_THROW, $2); }
 	|	T_GOTO T_STRING ';' { $$ = zend_ast_create(ZEND_AST_GOTO, $2); }
 	|	T_STRING ':' { $$ = zend_ast_create(ZEND_AST_LABEL, $1); }
 ;
 
-catch_list:
+retry_catch_list:
 		/* empty */
-			{ $$ = zend_ast_create_list(0, ZEND_AST_CATCH_LIST); }
-	|	catch_list T_CATCH '(' catch_name_list T_VARIABLE ')' '{' inner_statement_list '}'
+			{ $$ = zend_ast_create_list(0, ZEND_AST_RETRY_CATCH_LIST); }
+	|	retry_catch_list T_RETRY optional_retry_count '{' inner_statement_list '}'
+			{ $$ = zend_ast_list_add($1, zend_ast_create(ZEND_AST_RETRY, NULL, NULL, $5, $3, NULL)); }
+	|	retry_catch_list T_RETRY retry_count T_DOUBLE_ARROW T_VARIABLE '(' catch_name_list T_VARIABLE ')' '{' inner_statement_list '}'
+			{ $$ = zend_ast_list_add($1, zend_ast_create(ZEND_AST_RETRY, $7, $8, $11, $3, $5)); }
+	|	retry_catch_list T_CATCH '(' catch_name_list T_VARIABLE ')' '{' inner_statement_list '}'
 			{ $$ = zend_ast_list_add($1, zend_ast_create(ZEND_AST_CATCH, $4, $5, $8)); }
+;
+
+optional_retry_count:
+		/* empty */ { $$ = NULL; }
+	|	retry_count { $$ = $1; }
+;
+
+retry_count:
+		T_LNUMBER { $$ = $1; }
+	|	constant { $$ = $1; }
 ;
 
 catch_name_list:

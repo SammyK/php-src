@@ -48,6 +48,8 @@ enum _zend_ast_kind {
 	ZEND_AST_STMT_LIST,
 	ZEND_AST_IF,
 	ZEND_AST_SWITCH_LIST,
+	ZEND_AST_RETRY_CATCH_LIST,
+	ZEND_AST_RETRY_LIST,
 	ZEND_AST_CATCH_LIST,
 	ZEND_AST_PARAM_LIST,
 	ZEND_AST_CLOSURE_USES,
@@ -145,6 +147,9 @@ enum _zend_ast_kind {
 	/* 4 child nodes */
 	ZEND_AST_FOR = 4 << ZEND_AST_NUM_CHILDREN_SHIFT,
 	ZEND_AST_FOREACH,
+	
+	/* 5 child nodes */
+	ZEND_AST_RETRY,
 };
 
 typedef uint16_t zend_ast_kind;

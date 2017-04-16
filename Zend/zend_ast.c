@@ -1139,7 +1139,7 @@ simple_list:
 			zend_ast_export_if_stmt(str, (zend_ast_list*)ast, indent);
 			break;
 		case ZEND_AST_SWITCH_LIST:
-		case ZEND_AST_CATCH_LIST:
+		case ZEND_AST_RETRY_CATCH_LIST:
 			zend_ast_export_list(str, (zend_ast_list*)ast, 0, 0, indent);
 			break;
 		case ZEND_AST_CLOSURE_USES:
