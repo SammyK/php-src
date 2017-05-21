@@ -1603,7 +1603,7 @@ simple_list:
 			}
 			smart_str_appendc(str, '}');
 			break;
-		case ZEND_AST_CATCH:
+		case ZEND_AST_RETRY_CATCH:
 			smart_str_appends(str, "} catch (");
 			zend_ast_export_catch_name_list(str, zend_ast_get_list(ast->child[0]), indent);
 			smart_str_appends(str, " $");

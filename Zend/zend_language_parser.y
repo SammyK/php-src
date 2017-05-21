@@ -457,11 +457,11 @@ retry_catch_list:
 		/* empty */
 			{ $$ = zend_ast_create_list(0, ZEND_AST_RETRY_CATCH_LIST); }
 	|	retry_catch_list T_RETRY optional_retry_count '{' inner_statement_list '}'
-			{ $$ = zend_ast_list_add($1, zend_ast_create(ZEND_AST_RETRY, NULL, NULL, $5, $3, NULL)); }
+			{ $$ = zend_ast_list_add($1, zend_ast_create(ZEND_AST_RETRY_CATCH, NULL, NULL, $5, $3, NULL)); }
 	|	retry_catch_list T_RETRY retry_count T_DOUBLE_ARROW T_VARIABLE '(' catch_name_list T_VARIABLE ')' '{' inner_statement_list '}'
-			{ $$ = zend_ast_list_add($1, zend_ast_create(ZEND_AST_RETRY, $7, $8, $11, $3, $5)); }
+			{ $$ = zend_ast_list_add($1, zend_ast_create(ZEND_AST_RETRY_CATCH, $7, $8, $11, $3, $5)); }
 	|	retry_catch_list T_CATCH '(' catch_name_list T_VARIABLE ')' '{' inner_statement_list '}'
-			{ $$ = zend_ast_list_add($1, zend_ast_create(ZEND_AST_CATCH, $4, $5, $8)); }
+			{ $$ = zend_ast_list_add($1, zend_ast_create(ZEND_AST_RETRY_CATCH, $4, $5, $8, NULL, NULL)); }
 ;
 
 optional_retry_count:

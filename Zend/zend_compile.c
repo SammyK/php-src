@@ -4848,8 +4848,11 @@ void zend_compile_try(zend_ast *ast) /* {{{ */
 		zend_ast_list *classes;
 		zend_ast *var_ast = retry_catch_ast->child[1];
 		zend_ast *stmt_ast = retry_catch_ast->child[2];
+		zend_ast *retry_count_ast = retry_catch_ast->child[3];
+		zend_ast *attempts_var_ast = retry_catch_ast->child[4];
 		zval *var_name;
-		// @TODO Do we need to change this?
+		zval *attempts_var_name;
+		// @TODO Do we need to change this? (probably not)
 		zend_bool is_last_catch = (i + 1 == retries_catches->children);
 
 		if (retry_catch_ast->child[0]) {
@@ -4858,17 +4861,22 @@ void zend_compile_try(zend_ast *ast) /* {{{ */
 		if (var_ast) {
 			var_name = zend_ast_get_zval(var_ast);
 		}
+		if (attempts_var_ast) {
+			attempts_var_name = zend_ast_get_zval(attempts_var_ast);
+		}
 
+		/*
 		if (retry_catch_ast->kind == ZEND_AST_RETRY) {
 			php_printf("==Retry! (%d)==\n", retry_catch_ast->lineno);
-			opline = get_next_op(CG(active_op_array));
-			opline->opcode = ZEND_RETRY;
-			opline->op1_type = IS_TMP_VAR;
+			//opline = get_next_op(CG(active_op_array));
+			//opline->opcode = ZEND_RETRY;
+			//opline->op1_type = IS_TMP_VAR;
 			//opline->op1.num = $x
-			return;
+			//return;
 		} else if (retry_catch_ast->kind == ZEND_AST_CATCH) {
 			php_printf("==Catch (%d)==\n", retry_catch_ast->lineno);
 		}
+		*/
 		
 		uint32_t *jmp_multicatch = safe_emalloc(sizeof(uint32_t), classes->children - 1, 0);
 		uint32_t opnum_catch;
@@ -4881,6 +4889,7 @@ void zend_compile_try(zend_ast *ast) /* {{{ */
 			zend_bool is_last_class = (j + 1 == classes->children);
 
 			if (!zend_is_const_default_class_ref(class_ast)) {
+				// @TODO Distinguish the catch vs retry AST nodes for better error message
 				zend_error_noreturn(E_COMPILE_ERROR, "Bad class name in the catch statement");
 			}
 
