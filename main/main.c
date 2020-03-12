@@ -71,6 +71,7 @@
 #include "zend_highlight.h"
 #include "zend_extensions.h"
 #include "zend_ini.h"
+#include "zend_instrument.h"
 #include "zend_dtrace.h"
 
 #include "php_content_types.h"
@@ -2292,6 +2293,7 @@ int php_module_startup(sapi_module_struct *sf, zend_module_entry *additional_mod
 	   ahead of all other internals
 	 */
 	php_ini_register_extensions();
+	zend_instrument_init();
 	zend_startup_modules();
 
 	/* start Zend extensions */
@@ -2490,6 +2492,8 @@ void php_module_shutdown(void)
 		_set_invalid_parameter_handler(old_invalid_parameter_handler);
 	}
 #endif
+
+	zend_instrument_shutdown();
 }
 /* }}} */
 
